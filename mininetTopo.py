@@ -21,38 +21,36 @@ class TreeTopo(Topo):
         # Initialize topology
         Topo.__init__(self)
         
-        # s1 config
-        h1 = self.addHost('h1')
-        h2 = self.addHost('h2')
-        s1 = self.addSwitch('s1');
-        self.addLink(h1, s1, cls=TCLink, bw=int(10))
-        self.addLink(h2, s1, cls=TCLink, bw=int(10))
-
-        # s2 config
-        h3 = self.addHost('h3')
-        h4 = self.addHost('h4')
-        s2 = self.addSwitch('s2');
-        self.addLink(h3, s2, cls=TCLink, bw=int(10))
-        self.addLink(h4, s2, cls=TCLink, bw=int(10))
-
-        # s3 config
-        h5 = self.addHost('h5')
-        h6 = self.addHost('h6')
-        h7 = self.addHost('h7')
-        s3 = self.addSwitch('s3')
-        self.addLink(h5, s3, cls=TCLink, bw=int(10))
-        self.addLink(h6, s3, cls=TCLink, bw=int(10))
-        self.addLink(h7, s3, cls=TCLink, bw=int(10))
-
-        # s4 config
-        s4 = self.addSwitch('s4')
-
-        # switches network
-        self.addLink(s1, s2, cls=TCLink, bw=int(1000))
-        self.addLink(s2, s3, cls=TCLink, bw=int(1000))
-        self.addLink(s3, s4, cls=TCLink, bw=int(1000))
-        self.addLink(s1, s4, cls=TCLink, bw=int(1000))
+        hosts = []
+        switches = []
         
+        numHosts, numSwitches, numLinks = raw_input().split(' ')
+        print('There are {} hosts, {} switches, {} links'.format(numHosts, numSwitches, numLinks))
+        
+        for h in range(int(numHosts)):
+            host = self.addHost('h%s' % (h+1))
+            hosts.append(host)
+        
+        for s in range(int(numSwitches)):
+            switch = self.addSwitch('s%s' % (s+1))
+            switches.append(switch)
+        
+        for l in range(int(numLinks)):
+            src, dest, speed = raw_input().split(',')
+            
+            # get from correct array
+            if (src[0] == 'h'):
+                src = hosts[int(src[1]) - 1]
+            else:
+                src = switches[int(src[1]) - 1]
+            
+            if (dest[0] == 'h'):
+                dest = hosts[int(dest[1]) - 1]
+            else:
+                dest = switches[int(dest[1]) - 1]
+            
+            self.addLink(src, dest, cls=TCLink, bw=int(speed))
+            
 
 def startNetwork():
     info('** Creating the tree network\n')
