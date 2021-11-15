@@ -1,6 +1,6 @@
 '''
-Please add your name:
-Please add your matric number: 
+Tan Wei Jie
+A0202017B
 '''
 
 import sys
@@ -24,19 +24,43 @@ class Controller(EventMixin):
         self.listenTo(core.openflow)
         core.openflow_discovery.addListeners(self)
         
-    # You can write other functions as you need.
+        self.macToPort = {}
         
-    def _handle_PacketIn (self, event):    
-    	# install entries to the route table
+    def _handle_PacketIn (self, event):
+        packet = event.parsed
+        dpid = event.dpid
+        src = packet.src
+        dst = packet.dst
+        inport = event.port     
+        
+        # install entries to the route table
         def install_enqueue(event, packet, outport, q_id):
-          
+            #log.info("Sw{} installing new routing: {}:{} -> {}:{}".format(dpid, src, inport, dst, outport))
+            
+            msg = of.ofp_flow_mod()
+            msg.match = of.ofp_match.from_packet(packet, inport)
+            msg.data = event.ofp
+            msg.actions.append(of.ofp_action_output(port = outport))
+            event.connection.send(msg)
 
-    	# Check the packet and decide how to route the packet
+        # Check the packet and decide how to route the packet
         def forward(message = None):
-
+            #log.info("Sw{} finding routes for {}".format(dpid, dst))
+            
+            if dpid not in self.macToPort:
+                #log.info("Sw{} no match found for {}".format(dpid, dst))
+                flood()
+            elif dst not in self.macToPort[dpid]:
+                #log.info("Sw{} no match found for {}".format(dpid, dst))
+                flood()
+            else:
+                #log.info("Sw{} found match for {}".format(dpid, dst))
+                install_enqueue(event, packet, self.macToPort[dpid][dst], None)              
 
         # When it knows nothing about the destination, flood but don't install the rule
         def flood (message = None):
+            #log.info("Sw{} flooding: {}:{} -> *".format(dpid, src, inport))
+
             # define your message here
 
             # ofp_action_output: forwarding packets out of a physical or virtual port
@@ -44,6 +68,16 @@ class Controller(EventMixin):
             #    flooding disabled via the OFPPC_NO_FLOOD port config bit
             # msg.actions.append(of.ofp_action_output(port = of.OFPP_FLOOD))
         
+            msg = of.ofp_packet_out()
+            msg.actions.append(of.ofp_action_output(port = of.OFPP_FLOOD))
+            msg.data = event.ofp
+            msg.in_port = inport
+            event.connection.send(msg)
+        
+        # add new src to map then forward 
+        if dpid not in self.macToPort:
+            self.macToPort[dpid] = {}
+        self.macToPort[dpid][src] = inport 
         forward()
 
 
@@ -57,8 +91,9 @@ class Controller(EventMixin):
             
             # OFPP_NONE: outputting to nowhere
             # msg.actions.append(of.ofp_action_output(port = of.OFPP_NONE))
+            x = 1
 
-        for i in [FIREWALL POLICIES]:
+        for i in [FIREWALL_POLICIES]:
             sendFirewallPolicy(event.connection, i)
             
 
