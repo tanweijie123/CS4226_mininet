@@ -23,8 +23,9 @@ class TreeTopo(Topo):
         
         hosts = []
         switches = []
+        file = open("topology.in","r")
         
-        numHosts, numSwitches, numLinks = raw_input().split(' ')
+        numHosts, numSwitches, numLinks = file.readline().split(' ')
         print('There are {} hosts, {} switches, {} links'.format(numHosts, numSwitches, numLinks))
         
         for h in range(int(numHosts)):
@@ -36,7 +37,7 @@ class TreeTopo(Topo):
             switches.append(switch)
         
         for l in range(int(numLinks)):
-            src, dest, speed = raw_input().split(',')
+            src, dest, speed = file.readline().split(',')
             
             # get from correct array
             if (src[0] == 'h'):
