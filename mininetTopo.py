@@ -50,7 +50,7 @@ class TreeTopo(Topo):
             else:
                 dest = switches[int(dest[1]) - 1]
             
-            self.addLink(src, dest, cls=TCLink, bw=int(speed))
+            self.addLink(src, dest)
             
 
 def startNetwork():
@@ -65,13 +65,35 @@ def startNetwork():
     info('** Starting the network\n')
     net.start()
 
-    # Create QoS Queues
-    # > os.system('sudo ovs-vsctl -- set Port [INTERFACE] qos=@newqos \
-    #            -- --id=@newqos create QoS type=linux-htb other-config:max-rate=[LINK SPEED] queues=0=@q0,1=@q1,2=@q2 \
-    #            -- --id=@q0 create queue other-config:max-rate=[LINK SPEED] other-config:min-rate=[LINK SPEED] \
-    #            -- --id=@q1 create queue other-config:min-rate=[X] \
-    #            -- --id=@q2 create queue other-config:max-rate=[Y]')
+    info("Create QoS Queues\n")
 
+    
+    for link in net.topo.links(True, False, True):
+        src = link[0]
+        dst = link[1]
+        
+        if (src[0] == 's' and dst[0] == 's'): # configure double link for switches only. 
+            interface0 = '{}-eth{}'.format(src, link[2]['port1'])
+            interface1 = '{}-eth{}'.format(dst, link[2]['port2'])
+            #linkspeed = int(link[2]['bw'])
+            linkspeed = 1000
+            
+            print ("interface0 {}: src - {}; dest - {}; linkspeed - {}".format(interface0, src, dst, linkspeed))
+            print ("interface1 {}: src - {}; dest - {}; linkspeed - {}".format(interface1, src, dst, linkspeed))
+            
+            # q0 = normal queue
+            # q1 = premium queue
+        
+            os.system("sudo ovs-vsctl -- set Port %s qos=@newqos \
+                    -- --id=@newqos create QoS type=linux-htb other-config:max-rate=%i queues=0=@q0,1=@q1 \
+                    -- --id=@q0 create queue other-config:max-rate=%i other-config:min-rate=%i \
+                    -- --id=@q1 create queue other-config:max-rate=%i other-config:min-rate=%i"
+                    % (interface0, 1000000 * linkspeed, 5000000, 5000000, 10000000, 8000000))
+            os.system("sudo ovs-vsctl -- set Port %s qos=@newqos \
+                    -- --id=@newqos create QoS type=linux-htb other-config:max-rate=%i queues=0=@q0,1=@q1 \
+                    -- --id=@q0 create queue other-config:max-rate=%i other-config:min-rate=%i \
+                    -- --id=@q1 create queue other-config:max-rate=%i other-config:min-rate=%i"
+                    % (interface1, 1000000 * linkspeed, 5000000, 5000000, 10000000, 8000000))
     info('** Running CLI\n')
     CLI(net)
 

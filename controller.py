@@ -29,6 +29,7 @@ class Controller(EventMixin):
         
         self.macToPort = {}
         self.fwPolicy = []
+        self.premiumIp = []
         
         log.info("Reading fw policy %%%%%%%%%%%%")
         file = open("policy.in","r")
@@ -45,6 +46,11 @@ class Controller(EventMixin):
         
         log.info("Stored fw policy %%%%%%%%%%%%")
         
+        for i in range(int(numPremium)):
+            prem_ip = file.readline().strip()
+            self.premiumIp.append(prem_ip)
+            
+        log.info("All Premium IPs: {}".format(self.premiumIp))
         
     def _handle_PacketIn (self, event):
         packet = event.parsed
@@ -62,7 +68,7 @@ class Controller(EventMixin):
             msg.data = event.ofp
             msg.idle_timeout = 10
             msg.hard_timeout = 30
-            msg.actions.append(of.ofp_action_output(port = outport))
+            msg.actions.append(of.ofp_action_enqueue(port = outport, queue_id = q_id))
             event.connection.send(msg)
 
         # Check the packet and decide how to route the packet
@@ -74,8 +80,17 @@ class Controller(EventMixin):
                 flood()
             else:
                 #log.info("Sw{} found match for {}".format(dpid, dst))
-                install_enqueue(event, packet, self.macToPort[dst][1], None)
-
+                
+                srcip = None
+                if (packet.type == packet.IP_TYPE):
+                    srcip = packet.payload.srcip
+                
+                if (srcip in self.premiumIp):
+                    install_enqueue(event, packet, self.macToPort[dst][1], 1)
+                else:
+                    install_enqueue(event, packet, self.macToPort[dst][1], 0)
+                
+                
         # When it knows nothing about the destination, flood but don't install the rule
         def flood (message = None):
             #log.info("Sw{} flooding: {}:{} -> *".format(dpid, src, inport))
