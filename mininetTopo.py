@@ -10,7 +10,7 @@ from mininet.net import Mininet
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
 from mininet.topo import Topo
-from mininet.link import TCLink, Link
+from mininet.link import Link
 from mininet.node import RemoteController
 
 net = None
@@ -67,19 +67,19 @@ def startNetwork():
 
     info("Create QoS Queues\n")
 
+    switch_linkspeed = 1000000000
+    host_linkspeed = 10000000
+    premium_link = 0.8 * host_linkspeed
+    general_link = 0.5 * host_linkspeed
     
     for link in net.topo.links(True, False, True):
         src = link[0]
         dst = link[1]
+        interface0 = '{}-eth{}'.format(src, link[2]['port1'])
+        interface1 = '{}-eth{}'.format(dst, link[2]['port2'])
         
         if (src[0] == 's' and dst[0] == 's'): # configure double link for switches only. 
-            interface0 = '{}-eth{}'.format(src, link[2]['port1'])
-            interface1 = '{}-eth{}'.format(dst, link[2]['port2'])
-            #linkspeed = int(link[2]['bw'])
-            linkspeed = 1000
-            
-            print ("interface0 {}: src - {}; dest - {}; linkspeed - {}".format(interface0, src, dst, linkspeed))
-            print ("interface1 {}: src - {}; dest - {}; linkspeed - {}".format(interface1, src, dst, linkspeed))
+
             
             # q0 = normal queue
             # q1 = premium queue
@@ -88,12 +88,19 @@ def startNetwork():
                     -- --id=@newqos create QoS type=linux-htb other-config:max-rate=%i queues=0=@q0,1=@q1 \
                     -- --id=@q0 create queue other-config:max-rate=%i other-config:min-rate=%i \
                     -- --id=@q1 create queue other-config:max-rate=%i other-config:min-rate=%i"
-                    % (interface0, 1000000 * linkspeed, 5000000, 5000000, 10000000, 8000000))
+                    % (interface0, switch_linkspeed, general_link, general_link, host_linkspeed, premium_link))
             os.system("sudo ovs-vsctl -- set Port %s qos=@newqos \
                     -- --id=@newqos create QoS type=linux-htb other-config:max-rate=%i queues=0=@q0,1=@q1 \
                     -- --id=@q0 create queue other-config:max-rate=%i other-config:min-rate=%i \
                     -- --id=@q1 create queue other-config:max-rate=%i other-config:min-rate=%i"
-                    % (interface1, 1000000 * linkspeed, 5000000, 5000000, 10000000, 8000000))
+                    % (interface1, switch_linkspeed, general_link, general_link, host_linkspeed, premium_link))
+        else:
+            os.system("sudo ovs-vsctl -- set Port %s qos=@newqos \
+                    -- --id=@newqos create QoS type=linux-htb other-config:max-rate=%i queues=0=@q0 \
+                    -- --id=@q0 create queue other-config:max-rate=%i other-config:min-rate=%i"
+                    % (interface1, host_linkspeed, host_linkspeed, host_linkspeed))
+            
+
     info('** Running CLI\n')
     CLI(net)
 
