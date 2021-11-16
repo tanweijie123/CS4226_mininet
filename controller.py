@@ -24,7 +24,27 @@ class Controller(EventMixin):
         self.listenTo(core.openflow)
         core.openflow_discovery.addListeners(self)
         
+        # Priority Levels
+        self.FIREWALL_PRIORITY = 9999
+        
         self.macToPort = {}
+        self.fwPolicy = []
+        
+        log.info("Reading fw policy %%%%%%%%%%%%")
+        file = open("policy.in","r")
+        
+        numPolicy, numPremium = file.readline().split(' ')
+        
+        for p in range(int(numPolicy)):
+            lineArr = file.readline().split(',')
+            
+            if (len(lineArr)) == 2:
+                self.fwPolicy.append( (None, lineArr[0], lineArr[1]) )
+            elif (len(lineArr)) == 3:
+                self.fwPolicy.append( (lineArr[0], lineArr[1], lineArr[2]) )
+        
+        log.info("Stored fw policy %%%%%%%%%%%%")
+        
         
     def _handle_PacketIn (self, event):
         packet = event.parsed
@@ -80,17 +100,38 @@ class Controller(EventMixin):
 
     def _handle_ConnectionUp(self, event):
         dpid = dpid_to_str(event.dpid)
-        log.debug("Switch %s has come up.", dpid)
-        
+        log.info("Switch %s has come up.", dpid)
+              
         # Send the firewall policies to the switch
         def sendFirewallPolicy(connection, policy):
             # define your message here
             
             # OFPP_NONE: outputting to nowhere
             # msg.actions.append(of.ofp_action_output(port = of.OFPP_NONE))
-            x = 1
 
-        for i in [FIREWALL_POLICIES]:
+            src = policy[0] # cannot cast directly due to None check
+            dst = IPAddr(policy[1])
+            outport = int(policy[2])
+
+            msg = of.ofp_flow_mod()
+            msg.match.dl_type=0x800
+            msg.match.nw_dst=dst
+            msg.match.nw_proto=6
+            msg.match.tp_dst=outport
+            
+            if src is not None:
+                msg.match.nw_src = IPAddr(src)
+            
+            msg.priority = self.FIREWALL_PRIORITY
+            event.connection.send(msg)
+            
+            if src is None:
+                src = "*"
+            
+            log.info("Sw{} installed new fw policy block: {} -> {}:{}".format(event.dpid, src, dst, outport))
+
+
+        for i in self.fwPolicy:
             sendFirewallPolicy(event.connection, i)
             
 
