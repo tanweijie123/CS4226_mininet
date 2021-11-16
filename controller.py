@@ -40,6 +40,8 @@ class Controller(EventMixin):
             msg = of.ofp_flow_mod()
             msg.match = of.ofp_match.from_packet(packet, inport)
             msg.data = event.ofp
+            msg.idle_timeout = 10
+            msg.hard_timeout = 30
             msg.actions.append(of.ofp_action_output(port = outport))
             event.connection.send(msg)
 
@@ -47,15 +49,12 @@ class Controller(EventMixin):
         def forward(message = None):
             #log.info("Sw{} finding routes for {}".format(dpid, dst))
             
-            if dpid not in self.macToPort:
-                #log.info("Sw{} no match found for {}".format(dpid, dst))
-                flood()
-            elif dst not in self.macToPort[dpid]:
+            if (dst not in self.macToPort) or (self.macToPort[dst][0] != dpid):
                 #log.info("Sw{} no match found for {}".format(dpid, dst))
                 flood()
             else:
                 #log.info("Sw{} found match for {}".format(dpid, dst))
-                install_enqueue(event, packet, self.macToPort[dpid][dst], None)              
+                install_enqueue(event, packet, self.macToPort[dst][1], None)
 
         # When it knows nothing about the destination, flood but don't install the rule
         def flood (message = None):
@@ -75,9 +74,7 @@ class Controller(EventMixin):
             event.connection.send(msg)
         
         # add new src to map then forward 
-        if dpid not in self.macToPort:
-            self.macToPort[dpid] = {}
-        self.macToPort[dpid][src] = inport 
+        self.macToPort[src] = (dpid, inport)
         forward()
 
 
