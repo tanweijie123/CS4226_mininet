@@ -67,10 +67,6 @@ def startNetwork():
 
     info("Create QoS Queues\n")
 
-    switch_linkspeed = 1000000000
-    host_linkspeed = 10000000
-    premium_link = 0.8 * host_linkspeed
-    general_link = 0.5 * host_linkspeed
     
     for link in net.topo.links(True, False, True):
         src = link[0]
@@ -79,8 +75,8 @@ def startNetwork():
         interface1 = '{}-eth{}'.format(dst, link[2]['port2'])
         
         if (src[0] == 's' and dst[0] == 's'): # configure double link for switches only. 
+            switch_linkspeed = 1000000000
 
-            
             # q0 = normal queue
             # q1 = premium queue
         
@@ -88,17 +84,21 @@ def startNetwork():
                     -- --id=@newqos create QoS type=linux-htb other-config:max-rate=%i queues=0=@q0,1=@q1 \
                     -- --id=@q0 create queue other-config:max-rate=%i other-config:min-rate=%i \
                     -- --id=@q1 create queue other-config:max-rate=%i other-config:min-rate=%i"
-                    % (interface0, switch_linkspeed, general_link, general_link, host_linkspeed, premium_link))
+                    % (interface0, switch_linkspeed, switch_linkspeed, switch_linkspeed, switch_linkspeed, switch_linkspeed))
             os.system("sudo ovs-vsctl -- set Port %s qos=@newqos \
                     -- --id=@newqos create QoS type=linux-htb other-config:max-rate=%i queues=0=@q0,1=@q1 \
                     -- --id=@q0 create queue other-config:max-rate=%i other-config:min-rate=%i \
                     -- --id=@q1 create queue other-config:max-rate=%i other-config:min-rate=%i"
-                    % (interface1, switch_linkspeed, general_link, general_link, host_linkspeed, premium_link))
+                    % (interface1, switch_linkspeed, switch_linkspeed, switch_linkspeed, switch_linkspeed, switch_linkspeed))
         else:
+            host_linkspeed = 10000000
+            premium_link = 0.8 * host_linkspeed
+            general_link = 0.5 * host_linkspeed
             os.system("sudo ovs-vsctl -- set Port %s qos=@newqos \
-                    -- --id=@newqos create QoS type=linux-htb other-config:max-rate=%i queues=0=@q0 \
-                    -- --id=@q0 create queue other-config:max-rate=%i other-config:min-rate=%i"
-                    % (interface1, host_linkspeed, host_linkspeed, host_linkspeed))
+                    -- --id=@newqos create QoS type=linux-htb other-config:max-rate=%i queues=0=@q0,1=@q1 \
+                    -- --id=@q0 create queue other-config:max-rate=%i other-config:min-rate=%i \
+                    -- --id=@q1 create queue other-config:max-rate=%i other-config:min-rate=%i"
+                    % (interface1, host_linkspeed, general_link, general_link, host_linkspeed, premium_link))
             
 
     info('** Running CLI\n')
