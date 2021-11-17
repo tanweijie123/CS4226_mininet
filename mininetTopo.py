@@ -14,6 +14,7 @@ from mininet.link import Link
 from mininet.node import RemoteController
 
 net = None
+linkspeedTuple = {}
 
 class TreeTopo(Topo):
 
@@ -51,6 +52,7 @@ class TreeTopo(Topo):
                 dest = switches[int(dest[1]) - 1]
             
             self.addLink(src, dest)
+            linkspeedTuple[(src, dest)] = int(speed);
             
 
 def startNetwork():
@@ -65,20 +67,29 @@ def startNetwork():
     info('** Starting the network\n')
     net.start()
 
-    info("Create QoS Queues\n")
-
+    info("** Create QoS Queues\n")
+    
+    # q0 = normal queue
+    # q1 = premium queue
+    
+    def getLinkSpeedInBps(node1, node2):
+        linkspeed = 0
+        if (src, dst) in linkspeedTuple:
+            linkspeed = linkspeedTuple[(src,dst)]
+        elif (dst, src) in linkspeedTuple:
+            linkspeed = linkspeedTuple[(dst,src)]
+        
+        return linkspeed * 1000000 # convert Mbps -> bps
     
     for link in net.topo.links(True, False, True):
         src = link[0]
         dst = link[1]
         interface0 = '{}-eth{}'.format(src, link[2]['port1'])
         interface1 = '{}-eth{}'.format(dst, link[2]['port2'])
+        info("*** Setting {} QoS\n".format(interface1))
         
-        if (src[0] == 's' and dst[0] == 's'): # configure double link for switches only. 
-            switch_linkspeed = 1000000000
-
-            # q0 = normal queue
-            # q1 = premium queue
+        if (src[0] == 's' and dst[0] == 's'): # check if it is switch -- switch OR host -- switch
+            switch_linkspeed = getLinkSpeedInBps(src, dst)
         
             os.system("sudo ovs-vsctl -- set Port %s qos=@newqos \
                     -- --id=@newqos create QoS type=linux-htb other-config:max-rate=%i queues=0=@q0,1=@q1 \
@@ -91,9 +102,10 @@ def startNetwork():
                     -- --id=@q1 create queue other-config:max-rate=%i other-config:min-rate=%i"
                     % (interface1, switch_linkspeed, switch_linkspeed, switch_linkspeed, switch_linkspeed, switch_linkspeed))
         else:
-            host_linkspeed = 10000000
+            host_linkspeed = getLinkSpeedInBps(src, dst)
             premium_link = 0.8 * host_linkspeed
             general_link = 0.5 * host_linkspeed
+            
             os.system("sudo ovs-vsctl -- set Port %s qos=@newqos \
                     -- --id=@newqos create QoS type=linux-htb other-config:max-rate=%i queues=0=@q0,1=@q1 \
                     -- --id=@q0 create queue other-config:max-rate=%i other-config:min-rate=%i \
