@@ -75,7 +75,7 @@ class Controller(EventMixin):
         def forward(message = None):
             #log.info("Sw{} finding routes for {}".format(dpid, dst))
             
-            if (dst not in self.macToPort) or (self.macToPort[dst][0] != dpid):
+            if (dpid not in self.macToPort) or (dst not in self.macToPort[dpid]):
                 #log.info("Sw{} no match found for {}".format(dpid, dst))
                 flood()
             else:
@@ -85,12 +85,13 @@ class Controller(EventMixin):
                 if (packet.type == packet.IP_TYPE):
                     srcip = packet.payload.srcip
                 
+                priority = 0
+                
                 if (srcip in self.premiumIp):
-                    install_enqueue(event, packet, self.macToPort[dst][1], 1)
-                else:
-                    install_enqueue(event, packet, self.macToPort[dst][1], 0)
-                
-                
+                    priority = 1
+                    
+                install_enqueue(event, packet, self.macToPort[dpid][dst], priority)
+             
         # When it knows nothing about the destination, flood but don't install the rule
         def flood (message = None):
             #log.info("Sw{} flooding: {}:{} -> *".format(dpid, src, inport))
@@ -109,7 +110,8 @@ class Controller(EventMixin):
             event.connection.send(msg)
         
         # add new src to map then forward 
-        self.macToPort[src] = (dpid, inport)
+        self.macToPort[dpid] = self.macToPort.get(dpid, {})
+        self.macToPort[dpid][src] = inport
         forward()
 
 
