@@ -88,7 +88,7 @@ def startNetwork():
         interface1 = '{}-eth{}'.format(dst, link[2]['port2'])
         info("*** Setting {} QoS\n".format(interface1))
         
-        if (src[0] == 's' and dst[0] == 's'): # check if it is switch -- switch OR host -- switch
+        if (src[0] == 's' and dst[0] == 's'): # check if it is switch -- switch
             switch_linkspeed = getLinkSpeedInBps(src, dst)
         
             os.system("sudo ovs-vsctl -- set Port %s qos=@newqos \
@@ -101,16 +101,21 @@ def startNetwork():
                     -- --id=@q0 create queue other-config:max-rate=%i other-config:min-rate=%i \
                     -- --id=@q1 create queue other-config:max-rate=%i other-config:min-rate=%i"
                     % (interface1, switch_linkspeed, switch_linkspeed, switch_linkspeed, switch_linkspeed, switch_linkspeed))
-        else:
+        
+        elif (src[0] == 's' or dst[0] == 's'): # check if it is host -- switch
             host_linkspeed = getLinkSpeedInBps(src, dst)
             premium_link = 0.8 * host_linkspeed
             general_link = 0.5 * host_linkspeed
+            
+            interface = interface0
+            if (dst[0] == 's'): 
+                interface = interface1
             
             os.system("sudo ovs-vsctl -- set Port %s qos=@newqos \
                     -- --id=@newqos create QoS type=linux-htb other-config:max-rate=%i queues=0=@q0,1=@q1 \
                     -- --id=@q0 create queue other-config:max-rate=%i other-config:min-rate=%i \
                     -- --id=@q1 create queue other-config:max-rate=%i other-config:min-rate=%i"
-                    % (interface1, host_linkspeed, general_link, general_link, host_linkspeed, premium_link))
+                    % (interface, host_linkspeed, general_link, general_link, host_linkspeed, premium_link))
             
 
     info('** Running CLI\n')
