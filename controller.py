@@ -101,13 +101,6 @@ class Controller(EventMixin):
         def flood (message = None):
             #log.info("Sw{} flooding: {}:{} -> *".format(dpid, src, inport))
 
-            # define your message here
-
-            # ofp_action_output: forwarding packets out of a physical or virtual port
-            # OFPP_FLOOD: output all openflow ports expect the input port and those with 
-            #    flooding disabled via the OFPPC_NO_FLOOD port config bit
-            # msg.actions.append(of.ofp_action_output(port = of.OFPP_FLOOD))
-        
             msg = of.ofp_packet_out()
             msg.actions.append(of.ofp_action_output(port = of.OFPP_FLOOD))
             msg.data = event.ofp
@@ -126,10 +119,6 @@ class Controller(EventMixin):
               
         # Send the firewall policies to the switch
         def sendFirewallPolicy(connection, policy):
-            # define your message here
-            
-            # OFPP_NONE: outputting to nowhere
-            # msg.actions.append(of.ofp_action_output(port = of.OFPP_NONE))
 
             src = policy[0] # cannot cast directly due to None check
             dst = IPAddr(policy[1])
