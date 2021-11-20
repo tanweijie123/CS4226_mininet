@@ -26,6 +26,7 @@ class Controller(EventMixin):
         
         # Priority Levels
         self.FIREWALL_PRIORITY = 9999
+        self.PREMIUM_IP = 8888
         
         self.macToPort = {}
         self.fwPolicy = []
@@ -68,6 +69,10 @@ class Controller(EventMixin):
             msg.data = event.ofp
             msg.idle_timeout = 10
             msg.hard_timeout = 30
+            
+            if (q_id == 1): 
+                msg.priority = self.PREMIUM_IP
+            
             msg.actions.append(of.ofp_action_enqueue(port = outport, queue_id = q_id))
             event.connection.send(msg)
 
